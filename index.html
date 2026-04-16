@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Baseball Tool</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; height: 100%; background: #F7F5F2; font-family: 'DM Sans', system-ui, -apple-system, sans-serif; overflow: hidden; }
+
+  :root {
+    --purple: #33006F;
+    --purple-light: #EDE6F8;
+    --purple-dark: #24004E;
+    --gold: #C9A84C;
+    --bg: #F7F5F2;
+    --border: #E8E4DE;
+    --text: #1A1A1A;
+    --muted: #7A6F67;
+    --white: #ffffff;
+    --error-bg: #FFF4F0;
+    --error-border: #F5C6C0;
+    --error-text: #B83C2B;
+  }
+
+  /* ── LAYOUT ── */
+  #app { height: 100dvh; display: flex; flex-direction: column; overflow: hidden; max-width: 680px; margin: 0 auto; position: relative; }
+
+  /* ── HEADER ── */
+  #header { background: var(--purple); color: white; padding: 11px 16px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; box-shadow: 0 2px 12px rgba(51,0,111,.35); z-index: 10; }
+  #header-left { display: flex; align-items: center; gap: 10px; }
+  #header-logo { font-size: 22px; line-height: 1; }
+  #header-title { font-family: 'Playfair Display', serif; font-size: 17px; font-weight: 700; line-height: 1.1; }
+  #header-sub { font-size: 10px; opacity: .55; letter-spacing: .4px; margin-top: 1px; }
+  #header-right { display: flex; align-items: center; gap: 7px; }
+
+  .toggle-group { display: flex; background: rgba(255,255,255,.15); border-radius: 18px; padding: 3px; }
+  .toggle-btn { padding: 5px 11px; border-radius: 14px; border: none; cursor: pointer; font-size: 11.5px; font-weight: 600; font-family: inherit; text-transform: capitalize; background: transparent; color: rgba(255,255,255,.8); transition: all .15s; }
+  .toggle-btn.active { background: white; color: var(--purple); }
+
+  #glossary-btn { background: rgba(255,255,255,.15); border: none; color: white; padding: 7px 11px; border-radius: 16px; font-size: 14px; cursor: pointer; font-family: inherit; display: flex; align-items: center; gap: 5px; position: relative; }
+  #glossary-badge { background: var(--gold); color: white; font-size: 10px; font-weight: 700; border-radius: 9px; padding: 1px 5px; line-height: 1.4; display: none; }
+  #glossary-badge.show { display: inline-block; }
+
+  /* ── GAME CONTEXT ── */
+  #ctx-bar { background: white; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  #ctx-toggle { width: 100%; padding: 9px 16px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; background: none; border: none; font-family: inherit; text-align: left; }
+  #ctx-toggle-label { font-size: 12.5px; color: var(--muted); font-weight: 500; }
+  #ctx-arrow { font-size: 11px; color: #9B9490; transition: transform .15s; display: inline-block; }
+  #ctx-arrow.open { transform: rotate(180deg); }
+  #ctx-fields { display: none; padding: 2px 14px 14px; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; }
+  #ctx-fields.open { display: grid; }
+  .ctx-label { font-size: 9.5px; font-weight: 600; color: #A09890; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .5px; }
+  .ctx-input { width: 100%; padding: 7px 8px; border: 1.5px solid #E5DFD8; border-radius: 7px; font-size: 16px; font-family: inherit; background: #FAF8F5; transition: border-color .12s; }
+  .ctx-input:focus { outline: none; border-color: var(--purple); }
+
+  /* ── MESSAGES ── */
+  #messages { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 16px 14px 10px; display: flex; flex-direction: column; gap: 14px; min-height: 0; -webkit-overflow-scrolling: touch; }
+
+  /* ── STARTER CHIPS ── */
+  #starter-wrap { animation: fadeUp .3s ease; }
+  #starter-label { font-size: 11.5px; color: #9B9490; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 10px; }
+  #starter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .starter-chip { padding: 11px 12px; border-radius: 12px; border: 1.5px solid var(--border); background: white; color: #2A2420; font-size: 13px; font-family: inherit; cursor: pointer; text-align: left; line-height: 1.35; box-shadow: 0 1px 3px rgba(0,0,0,.05); transition: all .12s; }
+  .starter-chip:hover, .starter-chip:active { background: #EAE4F5; border-color: var(--purple); color: var(--purple); }
+
+  /* ── BUBBLE ── */
+  .msg-row { display: flex; flex-direction: column; gap: 8px; }
+  .msg-row.user { align-items: flex-end; }
+  .msg-row.assistant { align-items: flex-start; }
+  .bubble-wrap { display: flex; align-items: flex-start; gap: 8px; max-width: 85%; }
+  .msg-row.user .bubble-wrap { align-self: flex-end; }
+  .avatar { width: 30px; height: 30px; border-radius: 50%; background: var(--purple); display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; margin-top: 2px; }
+  .avatar.error { background: #E8E8E8; }
+  .bubble { padding: 13px 18px; border-radius: 4px 18px 18px 18px; background: white; color: var(--text); font-size: 15px; line-height: 1.65; box-shadow: 0 1px 4px rgba(0,0,0,.07); border: 1px solid #EDEAE6; }
+  .bubble.user { padding: 10px 16px; border-radius: 18px 18px 4px 18px; background: var(--purple); color: white; box-shadow: none; border: none; }
+  .bubble.error { background: var(--error-bg); color: var(--error-text); border-color: var(--error-border); cursor: pointer; }
+  .bubble strong { color: var(--purple); font-weight: 600; }
+  .bubble p { margin: 0; }
+  .bubble p + p { margin-top: 8px; }
+
+  /* ── SUGGESTIONS ── */
+  .sugg-row { padding-left: 38px; display: flex; flex-wrap: wrap; gap: 7px; animation: fadeUp .3s ease; }
+  .sugg-chip { padding: 7px 13px; border-radius: 16px; border: 1.5px solid #D4C8EE; background: var(--purple-light); color: #3A2870; font-size: 13px; font-family: inherit; cursor: pointer; line-height: 1.3; transition: all .12s; }
+  .sugg-chip:hover, .sugg-chip:active { background: #DDD5F5; border-color: var(--purple); }
+
+  /* ── TYPING DOTS ── */
+  #typing { display: none; align-items: flex-start; gap: 8px; }
+  #typing.show { display: flex; }
+  .dots { display: flex; gap: 5px; padding: 12px 16px; align-items: center; background: white; border-radius: 4px 18px 18px 18px; border: 1px solid #EDEAE6; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: #BEBAB6; animation: bdots 1.2s ease-in-out infinite; }
+  .dot:nth-child(2) { animation-delay: .16s; }
+  .dot:nth-child(3) { animation-delay: .32s; }
+
+  /* ── CATEGORY DRAWER ── */
+  #cat-drawer { background: white; border-top: 1px solid var(--border); flex-shrink: 0; max-height: 42dvh; overflow-y: auto; display: none; flex-direction: column; }
+  #cat-drawer.open { display: flex; }
+  #cat-tabs { display: flex; border-bottom: 1px solid var(--border); overflow-x: auto; flex-shrink: 0; scrollbar-width: none; }
+  #cat-tabs::-webkit-scrollbar { display: none; }
+  .cat-tab { padding: 10px 13px; border: none; border-bottom: 2.5px solid transparent; background: transparent; color: #4A4440; font-size: 12.5px; font-weight: 400; font-family: inherit; cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: color .12s; }
+  .cat-tab.active { color: var(--purple); font-weight: 600; border-bottom-color: var(--purple); }
+  .cat-tab.done { color: #9BA89A; }
+  #cat-questions { padding: 12px 14px; display: flex; flex-wrap: wrap; gap: 8px; }
+  .cat-chip { padding: 8px 14px; border-radius: 18px; border: 1.5px solid #DDD7CF; background: white; color: #3A3028; font-size: 13px; font-family: inherit; cursor: pointer; line-height: 1.3; transition: all .12s; }
+  .cat-chip:hover, .cat-chip:active { background: #EAE4F5; border-color: var(--purple); color: var(--purple); }
+  #cat-empty { font-size: 13px; color: #7A9A70; font-style: italic; padding: 2px 0; }
+
+  /* ── INPUT BAR ── */
+  #input-bar { background: white; border-top: 1px solid var(--border); padding: 10px 12px; display: flex; gap: 7px; align-items: flex-end; flex-shrink: 0; }
+  #cat-btn { background: #F5F2EE; border: 1.5px solid #DDD7CF; color: #5A5250; border-radius: 20px; width: 42px; height: 42px; font-size: 18px; cursor: pointer; flex-shrink: 0; transition: all .15s; display: flex; align-items: center; justify-content: center; }
+  #cat-btn.active { background: var(--purple-light); border-color: var(--purple); color: var(--purple); }
+  #what-btn { background: #FFF8E6; border: 1.5px solid #EDD060; color: #7A5C00; border-radius: 20px; padding: 0 12px; height: 42px; font-size: 12px; font-weight: 600; font-family: inherit; cursor: pointer; white-space: nowrap; flex-shrink: 0; line-height: 1.25; }
+  #what-btn:active { opacity: .75; }
+  #text-input { flex: 1; padding: 11px 14px; border: 1.5px solid #E0DAD3; border-radius: 20px; font-size: 16px; font-family: inherit; resize: none; line-height: 1.45; background: #FAF8F5; color: var(--text); transition: border-color .15s; max-height: 110px; overflow-y: auto; rows: 1; }
+  #text-input:focus { outline: none; border-color: var(--purple); }
+  #send-btn { background: var(--purple); border: none; color: white; width: 42px; height: 42px; border-radius: 50%; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background .15s; }
+  #send-btn:disabled { background: #C4CED4; cursor: default; }
+  #send-btn:not(:disabled):active { background: var(--purple-dark); }
+
+  /* ── GLOSSARY PANEL ── */
+  #glossary-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.3); z-index: 200; }
+  #glossary-overlay.open { display: block; }
+  #glossary-panel { position: fixed; top: 0; right: -100%; bottom: 0; width: min(320px, 88vw); background: white; box-shadow: -6px 0 30px rgba(0,0,0,.14); z-index: 201; display: flex; flex-direction: column; transition: right .25s ease; }
+  #glossary-panel.open { right: 0; }
+  #glossary-header { background: var(--purple); color: white; padding: 18px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+  #glossary-title { font-family: 'Playfair Display', serif; font-size: 17px; font-weight: 700; }
+  #glossary-count { font-size: 11px; opacity: .6; margin-top: 2px; }
+  #glossary-close { background: rgba(255,255,255,.15); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; }
+  #glossary-close:active { opacity: .7; }
+  #glossary-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  #glossary-empty { padding: 44px 22px; text-align: center; color: #A09890; }
+  #glossary-empty-icon { font-size: 44px; margin-bottom: 12px; }
+  #glossary-empty-text { font-size: 13.5px; line-height: 1.65; }
+  .gloss-item { padding: 13px 18px; border-bottom: 1px solid #F0EBE3; }
+  .gloss-term { font-size: 13.5px; font-weight: 600; color: var(--purple); margin-bottom: 3px; }
+  .gloss-def { font-size: 13px; color: #6B6460; line-height: 1.5; }
+
+  /* ── NAME ENTRY ── */
+  #name-screen { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 300; }
+  #name-screen.hidden { display: none; }
+  #name-card { background: white; border-radius: 20px; padding: 44px 28px; max-width: 360px; width: 100%; box-shadow: 0 8px 40px rgba(51,0,111,.1); text-align: center; }
+  #name-logo { font-size: 54px; margin-bottom: 14px; }
+  #name-title { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; color: var(--purple); margin-bottom: 10px; }
+  #name-sub { font-size: 14.5px; color: var(--muted); margin-bottom: 28px; line-height: 1.6; }
+  #name-input { width: 100%; padding: 13px 18px; border: 2px solid #E0DAD3; border-radius: 12px; font-size: 16px; font-family: inherit; margin-bottom: 12px; text-align: center; transition: border .15s; }
+  #name-input:focus { outline: none; border-color: var(--purple); }
+  #name-btn { width: 100%; padding: 14px; background: #C4CED4; color: white; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; font-family: inherit; cursor: default; transition: background .2s; }
+  #name-btn.ready { background: var(--purple); cursor: pointer; }
+  #name-btn.ready:active { background: var(--purple-dark); }
+
+  /* ── ANIMATIONS ── */
+  @keyframes bdots { 0%,80%,100%{transform:scale(.7);opacity:.4} 40%{transform:scale(1);opacity:1} }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes slideIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+
+  /* ── SCROLLBAR ── */
+  #messages::-webkit-scrollbar { width: 3px; }
+  #messages::-webkit-scrollbar-thumb { background: #D0C8C0; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- Name Entry Screen -->
+<div id="name-screen">
+  <div id="name-card">
+    <div id="name-logo">⚾</div>
+    <div id="name-title">Baseball Tool</div>
+    <div id="name-sub">Your Rockies baseball guide.<br>Enter your name to track your progress.</div>
+    <input id="name-input" type="text" placeholder="First name" maxlength="30" autocomplete="given-name" autocorrect="off" autocapitalize="words" spellcheck="false">
+    <button id="name-btn">Let's go →</button>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="app">
+
+  <!-- Header -->
+  <div id="header">
+    <div id="header-left">
+      <div id="header-logo">⚾</div>
+      <div>
+        <div id="header-title">Baseball Tool</div>
+        <div id="header-sub"></div>
+      </div>
+    </div>
+    <div id="header-right">
+      <div class="toggle-group">
+        <button class="toggle-btn active" data-mode="simple">Simple</button>
+        <button class="toggle-btn" data-mode="detailed">Detailed</button>
+      </div>
+      <button id="glossary-btn">📖 <span id="glossary-badge"></span></button>
+    </div>
+  </div>
+
+  <!-- Game Context -->
+  <div id="ctx-bar">
+    <button id="ctx-toggle">
+      <span id="ctx-toggle-label">🏟️ Set game context <span style="opacity:.6;font-weight:400">(optional)</span></span>
+      <span id="ctx-arrow">▾</span>
+    </button>
+    <div id="ctx-fields">
+      <div><div class="ctx-label">Away</div><input class="ctx-input" id="ctx-away-team" placeholder="LAD" type="text" inputmode="text"></div>
+      <div><div class="ctx-label">Home</div><input class="ctx-input" id="ctx-home-team" placeholder="COL" type="text" inputmode="text"></div>
+      <div><div class="ctx-label">Inning</div><input class="ctx-input" id="ctx-inning" placeholder="1–9" type="text" inputmode="numeric"></div>
+      <div><div class="ctx-label">Outs</div><input class="ctx-input" id="ctx-outs" placeholder="0/1/2" type="text" inputmode="numeric"></div>
+      <div><div class="ctx-label">Away Score</div><input class="ctx-input" id="ctx-away-score" placeholder="0" type="text" inputmode="numeric"></div>
+      <div><div class="ctx-label">Home Score</div><input class="ctx-input" id="ctx-home-score" placeholder="0" type="text" inputmode="numeric"></div>
+      <div><div class="ctx-label">Balls</div><input class="ctx-input" id="ctx-balls" placeholder="0–3" type="text" inputmode="numeric"></div>
+      <div><div class="ctx-label">Strikes</div><input class="ctx-input" id="ctx-strikes" placeholder="0–2" type="text" inputmode="numeric"></div>
+    </div>
+  </div>
+
+  <!-- Messages -->
+  <div id="messages">
+    <div id="starter-wrap">
+      <div id="starter-label">Quick start</div>
+      <div id="starter-grid"></div>
+    </div>
+    <div id="msg-list"></div>
+    <div id="typing">
+      <div class="avatar">⚾</div>
+      <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+    </div>
+    <div id="scroll-anchor" style="height:1px"></div>
+  </div>
+
+  <!-- Category Drawer -->
+  <div id="cat-drawer">
+    <div id="cat-tabs"></div>
+    <div id="cat-questions"></div>
+  </div>
+
+  <!-- Input Bar -->
+  <div id="input-bar">
+    <button id="cat-btn" title="Browse questions">☰</button>
+    <button id="what-btn">⚡ What just<br>happened?</button>
+    <textarea id="text-input" placeholder="Ask about baseball..." rows="1"></textarea>
+    <button id="send-btn" disabled>↑</button>
+  </div>
+
+</div>
+
+<!-- Glossary -->
+<div id="glossary-overlay"></div>
+<div id="glossary-panel">
+  <div id="glossary-header">
+    <div>
+      <div id="glossary-title">📖 Glossary</div>
+      <div id="glossary-count">0 terms saved</div>
+    </div>
+    <button id="glossary-close">×</button>
+  </div>
+  <div id="glossary-list">
+    <div id="glossary-empty">
+      <div id="glossary-empty-icon">⚾</div>
+      <div id="glossary-empty-text">Baseball terms are saved here automatically as you ask questions.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════════
+// CONSTANTS
+// ════════════════════════════════════════════════════════
+const PURPLE = '#33006F';
+
+const SYSTEM_PROMPT = `You are a warm, patient baseball guide helping adults learn baseball while watching games — primarily Colorado Rockies fans and NL West followers, though you cover all of baseball equally.
+
+Formatting rules:
+- Write in plain conversational prose. No bullet points or headers.
+- Bold key baseball terms using **term** syntax.
+- Keep answers to 2–4 short paragraphs. Focused and digestible.
+- End with one short natural follow-up hook.
+
+Tone:
+- [SIMPLE MODE] Explain to a curious adult who is brand new to baseball. Use everyday analogies. Define every term you introduce.
+- [DETAILED MODE] Add strategic depth, historical context, and statistical nuance for someone ready to go deeper.
+
+Game context: If [Game Context] is included in the message, weave it into your answer naturally to make it feel live.
+
+Rockies: Reference Coors Field, NL West teams, or Rockies players naturally when relevant — but never force it or over-weight it.
+
+Never assume prior knowledge. Always define what you introduce.`;
+
+const CATEGORIES = [
+  { label: '⚾ Basics', qs: ['How many players are on a baseball team?','How long does a baseball game last?','What are the 9 positions in baseball?',"What's the difference between the AL and NL?",'What is an inning?','How does a team win a game?'] },
+  { label: '🏏 Hitting', qs: ['How is the batting order decided?','What does the count mean, like 1-2?',"What's a batting average?",'What is the difference between a single, double, triple, and home run?',"What's a walk?",'What is a designated hitter?','What does it mean to bunt?'] },
+  { label: '🥎 Pitching', qs: ['How many pitchers play in a game?',"What's the difference between a starter and a reliever?",'What is an ERA?',"What's a strikeout vs. a walk?",'What is the difference between a fastball and a curveball?','What does it mean to throw a no-hitter?'] },
+  { label: '🏃 Scoring', qs: ['How do you score a run?',"What's an RBI?",'What happens in extra innings?',"What's a grand slam?",'What does it mean to be on base?',"What's a stolen base?"] },
+  { label: '📋 Rules', qs: ['What is a foul ball?',"What's a balk?",'What is the infield fly rule?','What does it mean to be caught stealing?',"What's an error?",'What is the shift in baseball?'] },
+  { label: '🏔️ Rockies', qs: ['How does altitude at Coors Field affect the game?','Who are the current Rockies players to know?','What makes the Rockies unique?','Who are the NL West teams and their rivalries?','What is the humidor at Coors Field?',"What's the history of the Colorado Rockies?"] }
+];
+
+const STARTER_QS = [
+  'How many players on a team?','What does the count mean?',
+  'How do you score a run?',"What's a strikeout?",
+  'What are the 9 positions?','How does altitude affect Coors Field?'
+];
+
+// ════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════
+let username = '';
+let depthMode = 'simple';
+let glossary = [];
+let usedQs = new Set();
+let newTermCount = 0;
+let apiHistory = [];
+let loading = false;
+let activeCatTab = null;
+let lastRetryText = null;
+let bgTimer = null;
+
+// ════════════════════════════════════════════════════════
+// STORAGE HELPERS
+// ════════════════════════════════════════════════════════
+function lsGet(key) { try { return localStorage.getItem(key); } catch { return null; } }
+function lsSet(key, val) { try { localStorage.setItem(key, val); } catch { } }
+
+function loadUser(name) {
+  try {
+    const uqRaw = lsGet('bt_uq_' + name);
+    usedQs = uqRaw ? new Set(JSON.parse(uqRaw)) : new Set();
+  } catch { usedQs = new Set(); }
+  try {
+    const glRaw = lsGet('bt_gl_' + name);
+    glossary = glRaw ? JSON.parse(glRaw) : [];
+  } catch { glossary = []; }
+}
+
+function saveUsedQs() { lsSet('bt_uq_' + username, JSON.stringify([...usedQs])); }
+function saveGlossary() { lsSet('bt_gl_' + username, JSON.stringify(glossary)); }
+
+function markUsed(q) {
+  usedQs.add(q);
+  saveUsedQs();
+}
+
+// ════════════════════════════════════════════════════════
+// API
+// ════════════════════════════════════════════════════════
+async function callProxy(messages, system, retries = 2) {
+  const body = { messages: messages.slice(-18) };
+  if (system) body.system = system;
+
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (!res.ok) {
+        const txt = await res.text().catch(() => '');
+        throw new Error('HTTP ' + res.status + ': ' + txt.slice(0, 80));
+      }
+
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+
+      const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
+      if (!text) throw new Error('Empty response from API');
+      return text;
+
+    } catch (e) {
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 900 * (attempt + 1)));
+      } else {
+        throw e;
+      }
+    }
+  }
+}
+
+// ════════════════════════════════════════════════════════
+// CONTEXT STRING
+// ════════════════════════════════════════════════════════
+function buildCtxStr() {
+  const parts = [];
+  const away = document.getElementById('ctx-away-team').value.trim();
+  const home = document.getElementById('ctx-home-team').value.trim();
+  const inning = document.getElementById('ctx-inning').value.trim();
+  const outs = document.getElementById('ctx-outs').value.trim();
+  const awayS = document.getElementById('ctx-away-score').value.trim();
+  const homeS = document.getElementById('ctx-home-score').value.trim();
+  const balls = document.getElementById('ctx-balls').value.trim();
+  const strikes = document.getElementById('ctx-strikes').value.trim();
+
+  if (away || home) parts.push((away || 'Away') + ' @ ' + (home || 'Home'));
+  if (awayS || homeS) parts.push('Score: ' + (awayS||'?') + '-' + (homeS||'?'));
+  if (inning) parts.push('Inning: ' + inning);
+  if (balls && strikes) parts.push('Count: ' + balls + '-' + strikes);
+  if (outs) parts.push(outs + ' out(s)');
+  return parts.length ? '[Game Context: ' + parts.join(' | ') + ']\n' : '';
+}
+
+// ════════════════════════════════════════════════════════
+// MARKDOWN RENDERER
+// ════════════════════════════════════════════════════════
+function renderMd(text) {
+  return text
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br>');
+}
+
+// ════════════════════════════════════════════════════════
+// DOM HELPERS
+// ════════════════════════════════════════════════════════
+function scrollBottom() {
+  const anchor = document.getElementById('scroll-anchor');
+  anchor.scrollIntoView({ behavior: 'smooth', block: 'end' });
+}
+
+function setLoading(val) {
+  loading = val;
+  document.getElementById('typing').classList.toggle('show', val);
+  document.getElementById('send-btn').disabled = val || !document.getElementById('text-input').value.trim();
+  scrollBottom();
+}
+
+// ════════════════════════════════════════════════════════
+// RENDER MESSAGES
+// ════════════════════════════════════════════════════════
+function appendUserBubble(text) {
+  const list = document.getElementById('msg-list');
+  const row = document.createElement('div');
+  row.className = 'msg-row user';
+  row.innerHTML = `<div class="bubble-wrap" style="align-self:flex-end"><div class="bubble user">${escHtml(text)}</div></div>`;
+  list.appendChild(row);
+  scrollBottom();
+  return row;
+}
+
+function appendAssistantBubble(text, isError, retryText) {
+  const list = document.getElementById('msg-list');
+  const row = document.createElement('div');
+  row.className = 'msg-row assistant';
+  row.dataset.retryText = retryText || '';
+
+  if (isError) {
+    row.innerHTML = `
+      <div class="bubble-wrap">
+        <div class="avatar error">⚠️</div>
+        <div class="bubble error">${escHtml(text)}</div>
+      </div>`;
+    row.querySelector('.bubble').addEventListener('click', () => {
+      const rt = row.dataset.retryText;
+      if (rt && !loading) {
+        row.remove();
+        send(rt);
+      }
+    });
+  } else {
+    const html = renderMd(text);
+    row.innerHTML = `
+      <div class="bubble-wrap">
+        <div class="avatar">⚾</div>
+        <div class="bubble"><p>${html}</p></div>
+      </div>`;
+  }
+
+  list.appendChild(row);
+  scrollBottom();
+  return row;
+}
+
+function appendSuggestions(row, suggestions) {
+  const existing = row.querySelector('.sugg-row');
+  if (existing) existing.remove();
+  if (!suggestions || suggestions.length === 0) return;
+
+  const available = suggestions.filter(q => !usedQs.has(q));
+  if (available.length === 0) return;
+
+  const suggRow = document.createElement('div');
+  suggRow.className = 'sugg-row';
+  available.slice(0, 3).forEach(q => {
+    const btn = document.createElement('button');
+    btn.className = 'sugg-chip';
+    btn.textContent = q;
+    btn.addEventListener('click', () => {
+      suggRow.remove();
+      send(q);
+    });
+    suggRow.appendChild(btn);
+  });
+  row.appendChild(suggRow);
+  scrollBottom();
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ════════════════════════════════════════════════════════
+// STARTER CHIPS
+// ════════════════════════════════════════════════════════
+function renderStarters() {
+  const grid = document.getElementById('starter-grid');
+  grid.innerHTML = '';
+  const available = STARTER_QS.filter(q => !usedQs.has(q));
+  if (available.length === 0) {
+    document.getElementById('starter-wrap').style.display = 'none';
+    return;
+  }
+  available.forEach(q => {
+    const btn = document.createElement('button');
+    btn.className = 'starter-chip';
+    btn.textContent = q;
+    btn.addEventListener('click', () => send(q));
+    grid.appendChild(btn);
+  });
+}
+
+function hideStarters() {
+  document.getElementById('starter-wrap').style.display = 'none';
+}
+
+// ════════════════════════════════════════════════════════
+// CATEGORY DRAWER
+// ════════════════════════════════════════════════════════
+function renderCatTabs() {
+  const tabs = document.getElementById('cat-tabs');
+  tabs.innerHTML = '';
+  CATEGORIES.forEach(cat => {
+    const rem = cat.qs.filter(q => !usedQs.has(q)).length;
+    const done = rem === 0;
+    const btn = document.createElement('button');
+    btn.className = 'cat-tab' + (activeCatTab === cat.label ? ' active' : '') + (done ? ' done' : '');
+    btn.textContent = cat.label + (done ? ' ✓' : (rem < cat.qs.length ? ' (' + rem + ')' : ''));
+    btn.addEventListener('click', () => {
+      activeCatTab = activeCatTab === cat.label ? null : cat.label;
+      renderCatTabs();
+      renderCatQuestions();
+    });
+    tabs.appendChild(btn);
+  });
+}
+
+function renderCatQuestions() {
+  const qDiv = document.getElementById('cat-questions');
+  qDiv.innerHTML = '';
+  if (!activeCatTab) return;
+
+  const cat = CATEGORIES.find(c => c.label === activeCatTab);
+  if (!cat) return;
+
+  const available = cat.qs.filter(q => !usedQs.has(q));
+  if (available.length === 0) {
+    const em = document.createElement('div');
+    em.id = 'cat-empty';
+    em.textContent = '✓ You've covered all questions here!';
+    qDiv.appendChild(em);
+    return;
+  }
+  available.forEach(q => {
+    const btn = document.createElement('button');
+    btn.className = 'cat-chip';
+    btn.textContent = q;
+    btn.addEventListener('click', () => {
+      document.getElementById('cat-drawer').classList.remove('open');
+      document.getElementById('cat-btn').classList.remove('active');
+      activeCatTab = null;
+      send(q);
+    });
+    qDiv.appendChild(btn);
+  });
+}
+
+// ════════════════════════════════════════════════════════
+// GLOSSARY
+// ════════════════════════════════════════════════════════
+function renderGlossary() {
+  const list = document.getElementById('glossary-list');
+  const empty = document.getElementById('glossary-empty');
+  document.getElementById('glossary-count').textContent = glossary.length + ' term' + (glossary.length !== 1 ? 's' : '') + ' saved';
+  document.getElementById('glossary-title').textContent = '📖 ' + (username ? username + "'s" : 'My') + ' Glossary';
+
+  // Remove existing items (keep empty div)
+  list.querySelectorAll('.gloss-item').forEach(el => el.remove());
+
+  if (glossary.length === 0) {
+    empty.style.display = 'block';
+  } else {
+    empty.style.display = 'none';
+    glossary.forEach(g => {
+      const item = document.createElement('div');
+      item.className = 'gloss-item';
+      item.innerHTML = `<div class="gloss-term">${escHtml(g.term)}</div><div class="gloss-def">${escHtml(g.definition)}</div>`;
+      list.appendChild(item);
+    });
+  }
+}
+
+function addNewTermBadge(count) {
+  newTermCount += count;
+  const badge = document.getElementById('glossary-badge');
+  badge.textContent = newTermCount;
+  badge.classList.add('show');
+}
+
+// ════════════════════════════════════════════════════════
+// BACKGROUND TASKS
+// ════════════════════════════════════════════════════════
+function runBackground(question, answerRow, usedSnapshot) {
+  clearTimeout(bgTimer);
+  bgTimer = setTimeout(async () => {
+
+    // 1. Generate follow-up suggestions
+    try {
+      const usedList = [...usedSnapshot].slice(-15).join('; ');
+      const res = await callProxy([{
+        role: 'user',
+        content: 'Baseball fan just asked: "' + question + '"\n\nGenerate 3 natural follow-up questions. Each under 60 characters. Return ONLY a JSON array of strings, nothing else, no markdown.\n\nDo not repeat: ' + usedList
+      }], 'Return ONLY a valid JSON array of exactly 3 short strings. No markdown. No explanation.', 1);
+
+      const clean = res.replace(/```json|```/g, '').trim();
+      const suggs = JSON.parse(clean);
+      if (Array.isArray(suggs) && suggs.length > 0) {
+        appendSuggestions(answerRow, suggs.filter(q => typeof q === 'string'));
+      }
+    } catch (e) {
+      // Suggestions are nice-to-have — fail silently
+    }
+
+    // 2. Extract glossary terms (staggered to avoid rate limiting)
+    await new Promise(r => setTimeout(r, 900));
+
+    try {
+      const res = await callProxy([{
+        role: 'user',
+        content: 'Extract 1–3 key baseball terms from this answer that a beginner should know. Return ONLY a JSON array like: [{"term":"ERA","definition":"Earned Run Average — runs allowed per 9 innings"}]. Return [] if none.\n\nAnswer: ' + question.slice(0, 800)
+      }], 'Return ONLY a valid JSON array. No markdown. No explanation.', 1);
+
+      const clean = res.replace(/```json|```/g, '').trim();
+      const terms = JSON.parse(clean);
+      if (Array.isArray(terms) && terms.length > 0) {
+        const existingLower = new Set(glossary.map(g => g.term.toLowerCase()));
+        const fresh = terms.filter(t => t && t.term && t.definition && !existingLower.has(t.term.toLowerCase()));
+        if (fresh.length > 0) {
+          glossary = [...glossary, ...fresh];
+          saveGlossary();
+          renderGlossary();
+          addNewTermBadge(fresh.length);
+        }
+      }
+    } catch (e) {
+      // Glossary extraction is nice-to-have — fail silently
+    }
+
+  }, 700);
+}
+
+// ════════════════════════════════════════════════════════
+// SEND MESSAGE
+// ════════════════════════════════════════════════════════
+async function send(text) {
+  const q = (text || '').trim();
+  if (!q || loading) return;
+
+  hideStarters();
+  document.getElementById('text-input').value = '';
+  autoResizeInput();
+  document.getElementById('send-btn').disabled = true;
+
+  // Close category drawer
+  document.getElementById('cat-drawer').classList.remove('open');
+  document.getElementById('cat-btn').classList.remove('active');
+  activeCatTab = null;
+
+  // Append user bubble
+  appendUserBubble(q);
+  markUsed(q);
+
+  // Build full API message
+  const ctx = buildCtxStr();
+  const fullMsg = '[' + depthMode.toUpperCase() + ' MODE] ' + ctx + q;
+  const newHist = [...apiHistory, { role: 'user', content: fullMsg }];
+
+  setLoading(true);
+
+  try {
+    const answer = await callProxy(newHist, SYSTEM_PROMPT);
+    apiHistory = [...newHist, { role: 'assistant', content: answer }].slice(-20);
+
+    setLoading(false);
+    const answerRow = appendAssistantBubble(answer, false, null);
+
+    // Refresh category tabs to reflect used question
+    renderCatTabs();
+
+    // Background: suggestions + glossary
+    const usedSnapshot = new Set(usedQs);
+    runBackground(q, answerRow, usedSnapshot);
+
+  } catch (e) {
+    setLoading(false);
+    appendAssistantBubble('Connection issue — tap to try again.', true, q);
+  }
+}
+
+// ════════════════════════════════════════════════════════
+// INPUT AUTO-RESIZE
+// ════════════════════════════════════════════════════════
+function autoResizeInput() {
+  const ta = document.getElementById('text-input');
+  ta.style.height = 'auto';
+  ta.style.height = Math.min(ta.scrollHeight, 110) + 'px';
+}
+
+// ════════════════════════════════════════════════════════
+// EVENT LISTENERS
+// ════════════════════════════════════════════════════════
+function initEvents() {
+
+  // Name entry
+  const nameInput = document.getElementById('name-input');
+  const nameBtn = document.getElementById('name-btn');
+
+  nameInput.addEventListener('input', () => {
+    nameBtn.classList.toggle('ready', nameInput.value.trim().length > 0);
+  });
+
+  nameInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && nameInput.value.trim()) confirmName();
+  });
+
+  nameBtn.addEventListener('click', () => {
+    if (nameInput.value.trim()) confirmName();
+  });
+
+  function confirmName() {
+    const name = nameInput.value.trim();
+    if (!name) return;
+    username = name;
+    lsSet('bt_username', name);
+    loadUser(name);
+    renderGlossary();
+    document.getElementById('header-sub').textContent = 'HI ' + name.toUpperCase();
+    document.getElementById('name-screen').classList.add('hidden');
+    renderStarters();
+    renderCatTabs();
+  }
+
+  // Depth toggle
+  document.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      depthMode = btn.dataset.mode;
+    });
+  });
+
+  // Glossary open/close
+  document.getElementById('glossary-btn').addEventListener('click', () => {
+    newTermCount = 0;
+    document.getElementById('glossary-badge').classList.remove('show');
+    document.getElementById('glossary-overlay').classList.add('open');
+    document.getElementById('glossary-panel').classList.add('open');
+  });
+  document.getElementById('glossary-close').addEventListener('click', closeGlossary);
+  document.getElementById('glossary-overlay').addEventListener('click', closeGlossary);
+
+  function closeGlossary() {
+    document.getElementById('glossary-overlay').classList.remove('open');
+    document.getElementById('glossary-panel').classList.remove('open');
+  }
+
+  // Game context toggle
+  document.getElementById('ctx-toggle').addEventListener('click', () => {
+    const fields = document.getElementById('ctx-fields');
+    const arrow = document.getElementById('ctx-arrow');
+    const isOpen = fields.classList.toggle('open');
+    arrow.classList.toggle('open', isOpen);
+  });
+
+  // Category drawer
+  document.getElementById('cat-btn').addEventListener('click', () => {
+    const drawer = document.getElementById('cat-drawer');
+    const btn = document.getElementById('cat-btn');
+    const isOpen = drawer.classList.toggle('open');
+    btn.classList.toggle('active', isOpen);
+    if (isOpen) {
+      renderCatTabs();
+      renderCatQuestions();
+    } else {
+      activeCatTab = null;
+    }
+  });
+
+  // What just happened
+  document.getElementById('what-btn').addEventListener('click', () => {
+    const ta = document.getElementById('text-input');
+    ta.value = 'What just happened? ';
+    autoResizeInput();
+    document.getElementById('send-btn').disabled = false;
+    ta.focus();
+  });
+
+  // Text input
+  const ta = document.getElementById('text-input');
+  ta.addEventListener('input', () => {
+    autoResizeInput();
+    document.getElementById('send-btn').disabled = loading || !ta.value.trim();
+  });
+  ta.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (!loading && ta.value.trim()) send(ta.value);
+    }
+  });
+
+  // Send button
+  document.getElementById('send-btn').addEventListener('click', () => {
+    const ta = document.getElementById('text-input');
+    if (!loading && ta.value.trim()) send(ta.value);
+  });
+}
+
+// ════════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════════
+function init() {
+  initEvents();
+  renderGlossary();
+
+  // Check if user already set their name
+  const savedName = lsGet('bt_username');
+  if (savedName) {
+    username = savedName;
+    loadUser(savedName);
+    renderGlossary();
+    document.getElementById('header-sub').textContent = 'HI ' + savedName.toUpperCase();
+    document.getElementById('name-screen').classList.add('hidden');
+    renderStarters();
+    renderCatTabs();
+  }
+  // Otherwise name screen stays visible
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
